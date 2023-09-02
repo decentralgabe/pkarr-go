@@ -2,11 +2,9 @@ package pkg
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/anacrolix/dht/v2"
 	"github.com/anacrolix/dht/v2/exts/getput"
-	"github.com/anacrolix/dht/v2/krpc"
 	"github.com/anacrolix/torrent/bencode"
 	"github.com/anacrolix/torrent/types/infohash"
 	"github.com/sirupsen/logrus"
@@ -35,19 +33,22 @@ func NewDHT() (*DHT, error) {
 }
 
 func (d *DHT) Get(key string) (string, error) {
-	hashed := internal.Hash([]byte(key))
-	hexed := internal.Hex(hashed)
-	res, t, err := getput.Get(context.Background(), infohash.FromHexString(hexed), d.Server, nil, nil)
+	z32Decoded, err := internal.Z32Decode(key)
+	if err != nil {
+		logrus.WithError(err).Error("failed to decode key")
+		return "", err
+	}
+	res, t, err := getput.Get(context.Background(), infohash.HashBytes(z32Decoded), d.Server, nil, nil)
 	if err != nil {
 		logrus.WithError(err).Errorf("failed to get key<%s> from dht; tried %d nodes, got %d responses", key, t.NumAddrsTried, t.NumResponses)
 		return "", err
 	}
-	var payload krpc.Bep46Payload
+	var payload string
 	if err = bencode.Unmarshal(res.V, &payload); err != nil {
-		return "", fmt.Errorf("unmarshalling bep46 payload: %w", err)
+		logrus.WithError(err).Error("failed to unmarshal payload value")
+		return "", err
 	}
-	s := payload.Ih.Bytes()
-	decoded, err := internal.Decode(s)
+	decoded, err := internal.Decode([]byte(payload))
 	if err != nil {
 		logrus.WithError(err).Error("failed to decode value from dht")
 		return "", err

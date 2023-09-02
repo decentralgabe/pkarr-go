@@ -30,6 +30,7 @@ require (
 	github.com/huandu/xstrings v1.3.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rs/dnscache v0.0.0-20211102005908-e0241e321417 // indirect
+	github.com/tv42/zbase32 v0.0.0-20220222190657-f76a9fc892fa // indirect
 	golang.org/x/exp v0.0.0-20221217163422-3c43f8badb15 // indirect
 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4 // indirect
 	golang.org/x/sys v0.11.0 // indirect
