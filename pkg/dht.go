@@ -1,19 +1,21 @@
 package pkg
 
 import (
+	"context"
 	"fmt"
-	"strconv"
-	"strings"
-	"time"
 
-	"github.com/nictuku/dht"
+	"github.com/anacrolix/dht/v2"
+	"github.com/anacrolix/dht/v2/exts/getput"
+	"github.com/anacrolix/dht/v2/krpc"
+	"github.com/anacrolix/torrent/bencode"
+	"github.com/anacrolix/torrent/types/infohash"
 	"github.com/sirupsen/logrus"
 
 	"pkarr-go/internal"
 )
 
 type DHT struct {
-	*dht.DHT
+	*dht.Server
 }
 
 type BootstrapPeer struct {
@@ -22,85 +24,47 @@ type BootstrapPeer struct {
 }
 
 func NewDHT() (*DHT, error) {
-	c := dht.NewConfig()
-	c.DHTRouters = getDefaultBootstrapPeersString()
-	d, err := dht.New(c)
+	c := dht.NewDefaultServerConfig()
+	c.StartingNodes = func() ([]dht.Addr, error) { return dht.ResolveHostPorts(getDefaultBootstrapPeers()) }
+	s, err := dht.NewServer(c)
 	if err != nil {
-		logrus.WithError(err).Error("failed to create dht")
+		logrus.WithError(err).Error("failed to create dht server")
 		return nil, err
 	}
-	if err = d.Start(); err != nil {
-		logrus.WithError(err).Error("failed to start dht")
-		return nil, err
-	}
-
-	return &DHT{DHT: d}, nil
+	return &DHT{Server: s}, nil
 }
 
-func (d DHT) Start() error {
-	return d.DHT.Start()
-}
-
-func (d DHT) Stop() {
-	d.DHT.Stop()
-}
-
-func (d DHT) Get(key string) (string, error) {
-	key = strings.Replace(key, "pk", "", 1)
-	target := internal.Hash([]byte(key))
-	targetHex := internal.Hex(target)
-
-	infoHash, err := dht.DecodeInfoHash(targetHex)
+func (d *DHT) Get(key string) (string, error) {
+	hashed := internal.Hash([]byte(key))
+	hexed := internal.Hex(hashed)
+	res, t, err := getput.Get(context.Background(), infohash.FromHexString(hexed), d.Server, nil, nil)
 	if err != nil {
-		fmt.Printf("DecodeInfoHash faiure: %v", err)
+		logrus.WithError(err).Errorf("failed to get key<%s> from dht; tried %d nodes, got %d responses", key, t.NumAddrsTried, t.NumResponses)
 		return "", err
 	}
-
-	infoHashPeers := d.QueryNodes(string(infoHash))
-	for ih, peers := range infoHashPeers {
-		if len(peers) > 0 {
-			for _, peer := range peers {
-				fmt.Println(dht.DecodePeerAddress(peer))
-			}
-
-			if fmt.Sprintf("%x", ih) == targetHex {
-				return ih.String(), nil
-			}
-		}
+	var payload krpc.Bep46Payload
+	if err = bencode.Unmarshal(res.V, &payload); err != nil {
+		return "", fmt.Errorf("unmarshalling bep46 payload: %w", err)
 	}
+	s := payload.Ih.Bytes()
+	decoded, err := internal.Decode(s)
+	if err != nil {
+		logrus.WithError(err).Error("failed to decode value from dht")
+		return "", err
+	}
+	return string(decoded), nil
+}
+
+func (d *DHT) Put(key string) (string, error) {
 	return "", nil
 }
 
-func (d DHT) QueryNodes(infoHash string) map[dht.InfoHash][]string {
-	tick := time.Tick(time.Second)
-	timer := time.NewTimer(8 * time.Second)
-	defer timer.Stop()
-
-	for {
-		select {
-		case <-tick:
-			fmt.Println("tick")
-			d.PeersRequest(infoHash, true)
-		case infoHashPeers := <-d.PeersRequestResults:
-			return infoHashPeers
-		case <-timer.C:
-			fmt.Printf("Could not find new peers: timed out")
-			return nil
-		}
+func getDefaultBootstrapPeers() []string {
+	return []string{
+		// "router.magnets.im:6881",
+		// "router.bittorrent.com:6881",
+		// "dht.transmissionbt.com:6881",
+		// "router.utorrent.com:6881",
+		"router.nuh.dev:6881",
 	}
-}
-
-func getDefaultBootstrapPeersString() string {
-	defaultPeers := []BootstrapPeer{
-		{Host: "router.magnets.im", Port: 6881},
-		{Host: "router.bittorrent.com", Port: 6881},
-		{Host: "dht.transmissionbt.com", Port: 6881},
-		{Host: "router.utorrent.com", Port: 6881},
-		{Host: "router.nuh.dev", Port: 6881},
-	}
-	b := new(strings.Builder)
-	for _, peer := range defaultPeers {
-		b.WriteString(strings.Join([]string{peer.Host, ":", strconv.Itoa(peer.Port)}, ""))
-	}
-	return b.String()
 }
