@@ -1,4 +1,4 @@
-package pkarr_go
+package pkg
 
 func resolveKey() {
 

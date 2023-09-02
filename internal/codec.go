@@ -1,4 +1,4 @@
-package pkarr_go
+package internal
 
 import (
 	"bytes"
@@ -9,14 +9,14 @@ import (
 )
 
 const (
-	// version is the version of the encoding
-	version = 0
+	// Version is the version of the encoding
+	Version = 0
 )
 
-// encode compresses the input data using Brotli compression
+// Encode compresses the input data using Brotli compression
 // the input data is expected to be a byte representation of JSON data
 // the result is a byte array prepended with the version
-func encode(data []byte) ([]byte, error) {
+func Encode(data []byte) ([]byte, error) {
 	// Create a buffer to store the compressed data
 	var compressedBuffer bytes.Buffer
 
@@ -37,16 +37,16 @@ func encode(data []byte) ([]byte, error) {
 
 	// Append the version to the beginning of the compressed data
 	compressedBytes := compressedBuffer.Bytes()
-	return append([]byte{version}, compressedBytes...), nil
+	return append([]byte{Version}, compressedBytes...), nil
 }
 
-// decode decompresses the input data using Brotli decompression
+// Decode decompresses the input data using Brotli decompression
 // the input data is expected to be a byte array prepended with the version
 // the result is expected to be a byte array of JSON data after decompression
-func decode(encoded []byte) ([]byte, error) {
+func Decode(encoded []byte) ([]byte, error) {
 	// Ensure the version is correct
-	if encoded[0] != version {
-		return nil, fmt.Errorf("invalid version: got[%d], expected [%d]", encoded[0], version)
+	if encoded[0] != Version {
+		return nil, fmt.Errorf("invalid version: got[%d], expected [%d]", encoded[0], Version)
 	}
 
 	// Create a buffer to store the decompressed data

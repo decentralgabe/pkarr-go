@@ -1,4 +1,4 @@
-package pkarr_go
+package pkg
 
 import (
 	"strconv"
@@ -39,6 +39,10 @@ func (d DHT) Start() error {
 
 func (d DHT) Stop() {
 	d.d.Stop()
+}
+
+func (d DHT) Get(key string) (string, error) {
+	return "", nil
 }
 
 func getDefaultBootstrapPeersString() string {

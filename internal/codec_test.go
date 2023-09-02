@@ -1,7 +1,6 @@
-package pkarr_go
+package internal
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"testing"
 
@@ -16,14 +15,14 @@ func TestEncodeDecode(t *testing.T) {
 		uncompressableBytes, err := json.Marshal(uncompressable)
 		require.NoError(t, err)
 
-		encoded, err := encode(uncompressableBytes)
+		encoded, err := Encode(uncompressableBytes)
 		require.NoError(t, err)
 		assert.NotEmpty(t, encoded)
 
 		assert.EqualValues(t, 0, encoded[0], "version 0")
-		assert.EqualValues(t, "000b05805b5b335d2c5b2233225d5d03", hex.EncodeToString(encoded))
+		assert.EqualValues(t, "000b05805b5b335d2c5b2233225d5d03", Hex(encoded))
 
-		decoded, err := decode(encoded)
+		decoded, err := Decode(encoded)
 		require.NoError(t, err)
 		assert.NotEmpty(t, decoded)
 
@@ -40,14 +39,14 @@ func TestEncodeDecode(t *testing.T) {
 		compressableBytes, err := json.Marshal(compressable)
 		require.NoError(t, err)
 
-		encoded, err := encode(compressableBytes)
+		encoded, err := Encode(compressableBytes)
 		require.NoError(t, err)
 		assert.NotEmpty(t, encoded)
 
 		assert.EqualValues(t, 0, encoded[0], "version 0")
-		assert.EqualValues(t, "001b6700f845e796faf3c704189bd16831144730d84cc2061c58e090278bc319042821b5379e63effc9b0712502389b9400c10da423445ddc4aca308b70a", hex.EncodeToString(encoded))
+		assert.EqualValues(t, "001b6700f845e796faf3c704189bd16831144730d84cc2061c58e090278bc319042821b5379e63effc9b0712502389b9400c10da423445ddc4aca308b70a", Hex(encoded))
 
-		decoded, err := decode(encoded)
+		decoded, err := Decode(encoded)
 		require.NoError(t, err)
 		assert.NotEmpty(t, decoded)
 
