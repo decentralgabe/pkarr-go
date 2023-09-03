@@ -20,11 +20,6 @@ type DHT struct {
 	*dht.Server
 }
 
-type BootstrapPeer struct {
-	Host string `json:"host"`
-	Port int    `json:"port"`
-}
-
 func NewDHT() (*DHT, error) {
 	c := dht.NewDefaultServerConfig()
 	c.StartingNodes = func() ([]dht.Addr, error) { return dht.ResolveHostPorts(getDefaultBootstrapPeers()) }
@@ -62,8 +57,9 @@ func (d *DHT) Get(key string) (string, error) {
 	return string(decoded), nil
 }
 
+// Put puts the given value into the DHT. It's recommended to use CreatePutRequest to create the request.
 func (d *DHT) Put(key ed25519.PublicKey, request bep44.Put) (string, error) {
-	t, err := getput.Put(context.Background(), request.Target(), d.Server, nil, func(seq int64) bep44.Put {
+	t, err := getput.Put(context.Background(), request.Target(), d.Server, nil, func(int64) bep44.Put {
 		return request
 	})
 	if err != nil {
@@ -74,6 +70,12 @@ func (d *DHT) Put(key ed25519.PublicKey, request bep44.Put) (string, error) {
 	return internal.Z32Encode(key), nil
 }
 
+// CreatePutRequest creates a put request for the given records. Requires a public/private keypair and the records to put.
+// The records are expected to be a slice of slices of strings, such as:
+//
+//	[][]string{
+//		{"foo", "bar"},
+//	}
 func CreatePutRequest(publicKey ed25519.PublicKey, privateKey ed25519.PrivateKey, records any) (*bep44.Put, error) {
 	recordsBytes, err := json.Marshal(records)
 	if err != nil {
@@ -94,21 +96,12 @@ func CreatePutRequest(publicKey ed25519.PublicKey, privateKey ed25519.PrivateKey
 	return put, nil
 }
 
-func encodeSigData(put any) ([]byte, error) {
-	encodedPut, err := bencode.Marshal(put)
-	if err != nil {
-		logrus.WithError(err).Error("failed to marshal put request")
-		return nil, err
-	}
-	return encodedPut[1:], nil
-}
-
 func getDefaultBootstrapPeers() []string {
 	return []string{
-		// 	"router.magnets.im:6881",
-		// 	"router.bittorrent.com:6881",
-		// 	"dht.transmissionbt.com:6881",
-		// 	"router.utorrent.com:6881",
+		"router.magnets.im:6881",
+		"router.bittorrent.com:6881",
+		"dht.transmissionbt.com:6881",
+		"router.utorrent.com:6881",
 		"router.nuh.dev:6881",
 	}
 }
