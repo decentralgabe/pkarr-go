@@ -2,8 +2,12 @@ package pkg
 
 import (
 	"context"
+	"crypto/ed25519"
+	"encoding/json"
+	"time"
 
 	"github.com/anacrolix/dht/v2"
+	"github.com/anacrolix/dht/v2/bep44"
 	"github.com/anacrolix/dht/v2/exts/getput"
 	"github.com/anacrolix/torrent/bencode"
 	"github.com/anacrolix/torrent/types/infohash"
@@ -32,6 +36,8 @@ func NewDHT() (*DHT, error) {
 	return &DHT{Server: s}, nil
 }
 
+// Get returns the value for the given key from the DHT.
+// The key is a z32-encoded string, such as "yj47pezutnpw9pyudeeai8cx8z8d6wg35genrkoqf9k3rmfzy58o".
 func (d *DHT) Get(key string) (string, error) {
 	z32Decoded, err := internal.Z32Decode(key)
 	if err != nil {
@@ -56,16 +62,53 @@ func (d *DHT) Get(key string) (string, error) {
 	return string(decoded), nil
 }
 
-func (d *DHT) Put(key string) (string, error) {
-	return "", nil
+func (d *DHT) Put(key ed25519.PublicKey, request bep44.Put) (string, error) {
+	t, err := getput.Put(context.Background(), request.Target(), d.Server, nil, func(seq int64) bep44.Put {
+		return request
+	})
+	if err != nil {
+		logrus.WithError(err).Errorf("failed to put key into dht, tried %d nodes, got %d responses", t.NumAddrsTried, t.NumResponses)
+		return "", err
+	}
+
+	return internal.Z32Encode(key), nil
+}
+
+func CreatePutRequest(publicKey ed25519.PublicKey, privateKey ed25519.PrivateKey, records any) (*bep44.Put, error) {
+	recordsBytes, err := json.Marshal(records)
+	if err != nil {
+		logrus.WithError(err).Error("failed to marshal records")
+		return nil, err
+	}
+	encodedV, err := internal.Encode(recordsBytes)
+	if err != nil {
+		logrus.WithError(err).Error("failed to encode records")
+		return nil, err
+	}
+	put := &bep44.Put{
+		V:   encodedV,
+		K:   (*[32]byte)(publicKey),
+		Seq: time.Now().UnixMilli() / 1000,
+	}
+	put.Sign(privateKey)
+	return put, nil
+}
+
+func encodeSigData(put any) ([]byte, error) {
+	encodedPut, err := bencode.Marshal(put)
+	if err != nil {
+		logrus.WithError(err).Error("failed to marshal put request")
+		return nil, err
+	}
+	return encodedPut[1:], nil
 }
 
 func getDefaultBootstrapPeers() []string {
 	return []string{
-		// "router.magnets.im:6881",
-		// "router.bittorrent.com:6881",
-		// "dht.transmissionbt.com:6881",
-		// "router.utorrent.com:6881",
+		// 	"router.magnets.im:6881",
+		// 	"router.bittorrent.com:6881",
+		// 	"dht.transmissionbt.com:6881",
+		// 	"router.utorrent.com:6881",
 		"router.nuh.dev:6881",
 	}
 }
