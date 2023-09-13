@@ -8,6 +8,6 @@ type Identity struct {
 	Base58PublicKey string `json:"publicKey"`
 	// The private key of the identity.
 	Base58PrivateKey string `json:"privateKey"`
-	// Records
-	Records [][]any `json:"records"`
+	// Records is a slice of slices of strings, such as: [["foo", "bar"]].
+	Records [][]string `json:"records"`
 }

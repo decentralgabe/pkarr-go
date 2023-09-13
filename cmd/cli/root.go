@@ -16,7 +16,7 @@ var (
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.pkarr.json)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.pkarr/pkarr.json)")
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

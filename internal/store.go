@@ -22,7 +22,7 @@ func Read() (Identities, error) {
 	}
 	f, _ := os.Open(pkarrFile)
 	defer f.Close()
-	identities := make(Identities)
+	var identities Identities
 	if err := json.NewDecoder(f).Decode(&identities); err != nil {
 		logrus.WithError(err).Error("failed to decode pkarr file")
 		return nil, err
@@ -56,7 +56,7 @@ func Write(id string, identity Identity) error {
 			logrus.WithError(err).Error("identity already exists")
 			return err
 		}
-		identities[identity.Base58PublicKey] = identity
+		identities[id] = identity
 	}
 
 	identitiesBytes, err := json.Marshal(identities)
@@ -65,7 +65,7 @@ func Write(id string, identity Identity) error {
 		return err
 	}
 
-	f, _ := os.OpenFile(pkarrFile, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
+	f, _ := os.OpenFile(pkarrFile, os.O_WRONLY, os.ModeAppend)
 	if _, err = f.WriteString(string(identitiesBytes)); err != nil {
 		logrus.WithError(err).Error("failed to write identities to pkarr file")
 		return err

@@ -1,13 +1,21 @@
 package cli
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
+
+	"github.com/mr-tron/base58"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"pkarr-go/internal"
+	"pkarr-go/pkg"
 )
 
 func init() {
 	rootCmd.AddCommand(identityCmd)
+	identityCmd.AddCommand(identityAddCmd)
 }
 
 var identityCmd = &cobra.Command{
@@ -22,8 +30,15 @@ var identityCmd = &cobra.Command{
 			println("No identities found.")
 			return nil
 		}
+		i := 0
 		for id, identity := range identities {
-			println(id, identity.Records)
+			recordJSON, err := json.Marshal(identity.Records)
+			if err != nil {
+				logrus.WithError(err).Error("failed to marshal records")
+				return err
+			}
+			fmt.Printf("%d: %s – %s\n", i+1, id, string(recordJSON))
+			i++
 		}
 		return nil
 	},
@@ -31,8 +46,54 @@ var identityCmd = &cobra.Command{
 
 var identityAddCmd = &cobra.Command{
 	Use:   "add",
-	Short: "Add an identity",
+	Short: "Add an identity, accepting a json string of records",
+	Long:  `Add an identity, accepting a json string of records such as [["foo", "bar"]].`,
+	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		pubKey, privKey, err := internal.GenerateKeypair()
+		if err != nil {
+			logrus.WithError(err).Error("failed to generate keypair")
+			return err
+		}
+		var records [][]string
+		if err := json.Unmarshal([]byte(args[0]), &records); err != nil {
+			logrus.WithError(err).Error("failed to unmarshal records")
+			return err
+		}
+
+		// start dht
+		d, err := pkg.NewDHT()
+		if err != nil {
+			logrus.WithError(err).Error("failed to create dht")
+			return err
+		}
+
+		// generate put request
+		putReq, err := pkg.CreatePutRequest(pubKey, privKey, records)
+		if err != nil {
+			logrus.WithError(err).Error("failed to create put request")
+			return err
+		}
+
+		// put the identity into the dht
+		id, err := d.Put(context.Background(), pubKey, *putReq)
+		if err != nil {
+			logrus.WithError(err).Error("failed to put identity into dht")
+			return err
+		}
+
+		// write the identity to the pkarr file
+		identity := internal.Identity{
+			Base58PublicKey:  base58.Encode(pubKey),
+			Base58PrivateKey: base58.Encode(privKey),
+			Records:          records,
+		}
+		if err := internal.Write(id, identity); err != nil {
+			logrus.WithError(err).Error("failed to write identity to pkarr file")
+			return err
+		}
+
+		fmt.Printf("Added identity: %s, with records: %s\n", id, args[0])
 		return nil
 	},
 }
