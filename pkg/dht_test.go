@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -12,7 +13,7 @@ func TestGetDHT(t *testing.T) {
 	d, err := NewDHT()
 	require.NoError(t, err)
 
-	got, err := d.Get("yj47pezutnpw9pyudeeai8cx8z8d6wg35genrkoqf9k3rmfzy58o")
+	got, err := d.Get(context.Background(), "yj47pezutnpw9pyudeeai8cx8z8d6wg35genrkoqf9k3rmfzy58o")
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 	println(got)
@@ -31,13 +32,13 @@ func TestPutDHT(t *testing.T) {
 	putReq, err := CreatePutRequest(pubKey, privKey, records)
 	require.NoError(t, err)
 
-	id, err := d.Put(pubKey, *putReq)
+	id, err := d.Put(context.Background(), pubKey, *putReq)
 	require.NoError(t, err)
 	require.NotEmpty(t, id)
 
 	println(id)
 
-	got, err := d.Get(id)
+	got, err := d.Get(context.Background(), id)
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 	println(got)
