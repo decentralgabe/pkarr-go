@@ -33,13 +33,13 @@ func NewDHT() (*DHT, error) {
 
 // Get returns the value for the given key from the DHT.
 // The key is a z32-encoded string, such as "yj47pezutnpw9pyudeeai8cx8z8d6wg35genrkoqf9k3rmfzy58o".
-func (d *DHT) Get(key string) (string, error) {
+func (d *DHT) Get(ctx context.Context, key string) (string, error) {
 	z32Decoded, err := internal.Z32Decode(key)
 	if err != nil {
 		logrus.WithError(err).Error("failed to decode key")
 		return "", err
 	}
-	res, t, err := getput.Get(context.Background(), infohash.HashBytes(z32Decoded), d.Server, nil, nil)
+	res, t, err := getput.Get(ctx, infohash.HashBytes(z32Decoded), d.Server, nil, nil)
 	if err != nil {
 		logrus.WithError(err).Errorf("failed to get key<%s> from dht; tried %d nodes, got %d responses", key, t.NumAddrsTried, t.NumResponses)
 		return "", err
@@ -58,15 +58,14 @@ func (d *DHT) Get(key string) (string, error) {
 }
 
 // Put puts the given value into the DHT. It's recommended to use CreatePutRequest to create the request.
-func (d *DHT) Put(key ed25519.PublicKey, request bep44.Put) (string, error) {
-	t, err := getput.Put(context.Background(), request.Target(), d.Server, nil, func(int64) bep44.Put {
+func (d *DHT) Put(ctx context.Context, key ed25519.PublicKey, request bep44.Put) (string, error) {
+	t, err := getput.Put(ctx, request.Target(), d.Server, nil, func(int64) bep44.Put {
 		return request
 	})
 	if err != nil {
 		logrus.WithError(err).Errorf("failed to put key into dht, tried %d nodes, got %d responses", t.NumAddrsTried, t.NumResponses)
 		return "", err
 	}
-
 	return internal.Z32Encode(key), nil
 }
 

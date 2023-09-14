@@ -1,24 +1,16 @@
 package pkg
 
 import (
+	"context"
 	"testing"
 
+	"github.com/TBD54566975/ssi-sdk/crypto/jwx"
 	"github.com/stretchr/testify/require"
 
 	"pkarr-go/internal"
 )
 
-func TestGetDHT(t *testing.T) {
-	d, err := NewDHT()
-	require.NoError(t, err)
-
-	got, err := d.Get("yj47pezutnpw9pyudeeai8cx8z8d6wg35genrkoqf9k3rmfzy58o")
-	require.NoError(t, err)
-	require.NotEmpty(t, got)
-	println(got)
-}
-
-func TestPutDHT(t *testing.T) {
+func TestGetPutDHT(t *testing.T) {
 	d, err := NewDHT()
 	require.NoError(t, err)
 
@@ -31,14 +23,60 @@ func TestPutDHT(t *testing.T) {
 	putReq, err := CreatePutRequest(pubKey, privKey, records)
 	require.NoError(t, err)
 
-	id, err := d.Put(pubKey, *putReq)
+	id, err := d.Put(context.Background(), pubKey, *putReq)
 	require.NoError(t, err)
 	require.NotEmpty(t, id)
 
 	println(id)
 
-	got, err := d.Get(id)
+	got, err := d.Get(context.Background(), id)
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
+	println(got)
+}
+
+func TestDID(t *testing.T) {
+	pubKey, privKey, err := internal.GenerateKeypair()
+	require.NoError(t, err)
+
+	pubKeyJWK, err := jwx.PublicKeyToPublicKeyJWK("#0", pubKey)
+	require.NoError(t, err)
+
+	id := internal.Z32Encode(pubKey)
+
+	records := [][]any{
+		{"_did", map[string]any{
+			"id": "did:pk" + id,
+			"verificationMethod": []map[string]any{
+				{
+					"id":         "#0",
+					"controller": "did:pk" + id,
+					"type":       "JsonWebKey2020",
+					"publicKeyJwk": map[string]any{
+						"kty": "OKP",
+						"crv": "Ed25519",
+						"x":   pubKeyJWK.X,
+					},
+				},
+			},
+		}},
+	}
+
+	putReq, err := CreatePutRequest(pubKey, privKey, records)
+	require.NoError(t, err)
+
+	d, err := NewDHT()
+	require.NoError(t, err)
+
+	_, err = d.Put(context.Background(), pubKey, *putReq)
+	require.NoError(t, err)
+	require.NotEmpty(t, id)
+
+	println(id)
+
+	got, err := d.Get(context.Background(), id)
+	require.NoError(t, err)
+	require.NotEmpty(t, got)
+
 	println(got)
 }
