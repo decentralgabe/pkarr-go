@@ -45,12 +45,12 @@ func TestDID(t *testing.T) {
 	id := internal.Z32Encode(pubKey)
 
 	records := [][]any{
-		{"did", map[string]any{
-			"id": id,
+		{"_did", map[string]any{
+			"id": "did:pk" + id,
 			"verificationMethod": []map[string]any{
 				{
 					"id":         "#0",
-					"controller": id,
+					"controller": "did:pk" + id,
 					"type":       "JsonWebKey2020",
 					"publicKeyJwk": map[string]any{
 						"kty": "OKP",
