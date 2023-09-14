@@ -16,6 +16,7 @@ import (
 func init() {
 	rootCmd.AddCommand(identityCmd)
 	identityCmd.AddCommand(identityAddCmd)
+	identityCmd.AddCommand(identityGetCmd)
 }
 
 var identityCmd = &cobra.Command{
@@ -55,7 +56,7 @@ var identityAddCmd = &cobra.Command{
 			logrus.WithError(err).Error("failed to generate keypair")
 			return err
 		}
-		var records [][]string
+		var records [][]any
 		if err := json.Unmarshal([]byte(args[0]), &records); err != nil {
 			logrus.WithError(err).Error("failed to unmarshal records")
 			return err
@@ -94,6 +95,49 @@ var identityAddCmd = &cobra.Command{
 		}
 
 		fmt.Printf("Added identity: %s, with records: %s\n", id, args[0])
+		return nil
+	},
+}
+
+var identityGetCmd = &cobra.Command{
+	Use:   "get",
+	Short: "Get an identity",
+	Long:  `Get an identity by its id.`,
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		id := args[0]
+
+		// first read the pkarr file
+		identities, err := internal.Read()
+		if err == nil {
+			// if the pkarr file exists, look for the identity
+			if identity, ok := identities[id]; ok {
+				recordsBytes, err := json.Marshal(identity.Records)
+				if err != nil {
+					logrus.WithError(err).Error("failed to marshal records")
+					return err
+				}
+				fmt.Printf("Records: %s\n", string(recordsBytes))
+				return nil
+			}
+		}
+		// fall back to dht if not found in pkarr file
+
+		// start dht
+		d, err := pkg.NewDHT()
+		if err != nil {
+			logrus.WithError(err).Error("failed to create dht")
+			return err
+		}
+
+		// get the identity from the dht
+		gotJSON, err := d.Get(context.Background(), id)
+		if err != nil {
+			logrus.WithError(err).Error("failed to get identity from dht")
+			return err
+		}
+
+		fmt.Printf("Records: %s\n", gotJSON)
 		return nil
 	},
 }

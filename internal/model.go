@@ -9,5 +9,5 @@ type Identity struct {
 	// The private key of the identity.
 	Base58PrivateKey string `json:"privateKey"`
 	// Records is a slice of slices of strings, such as: [["foo", "bar"]].
-	Records [][]string `json:"records"`
+	Records [][]any `json:"records"`
 }
